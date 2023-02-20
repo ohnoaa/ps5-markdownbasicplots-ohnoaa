@@ -43,21 +43,31 @@ gap %>%
   head(1)
 ```
 
-
 **2. If you did this correctly, you saw that there are more names than iso-2 codes, and there are even more iso3 -codes. What is going on? Can you find it out?**
 
 **(a) (5pt) Find how many names are there for each iso-2 code. Are there any iso-2 codes that correspond to more than one name? What are these countries?**
 
 ```{r message=FALSE}
-
-
+gap %>% 
+  group_by(iso2) %>% 
+  summarise(num_names = n_distinct(name)) %>% 
+  arrange(desc(num_names)) %>% 
+  head(1)
 ```
-Yes, there is one iso-2 code that corresponds to more name...
+Yes, there is one iso-2 code that corresponds to more name: _NA_.
 
 **(b) (5pt) Now repeat the same for name and iso3-code. Are there country names that have more than one iso3-code? What are these countries?**
 
 _Hint: two of these entities are CHANISL and NLD CURACAO._
 
+```{r message=FALSE}
+gap %>% 
+  group_by(name) %>% 
+  summarise(num_names = n_distinct(iso3)) %>% 
+  arrange(desc(num_names)) %>% 
+  head(1)
+```
+There are 4 countries that are associated with the _NA_ iso3 category.
 
 **3. (2pt) What is the minimum and maximum year in these data?**
 
@@ -99,10 +109,13 @@ gap %>%
   summarise(co2_total = sum(co2)) %>% 
   filter(name == "China" | name == "United States of America" | name == "India" | name == "Israel" | name == "Morocco" | name == "Romania") %>% 
   ggplot(aes(name, co2_total)) +
-  geom_col()
+  geom_col() +
+    labs(title = "Total CO2 Emissions over Time",
+       x = "Country",
+       y = "Total CO2 Emissions")
 ```
 
-The U.S., China, and India are the top three countries in the graph with the highest amount of CO2 consumption. The additional countries I compared to, Israel, Morocco, and Romania, all have very minimal CO2 emissions in comparison.
+The U.S., China, and India are the top three countries in the graph with the highest amount of CO2 consumption. The additional countries I compared to, Israel, Morocco, and Romania, all have very minimal CO2 emissions in comparison. (For clarification, I decided to use a bar graph for both this question and the one that follows to show the totals because the type of graph was not specified.)
 
 **3. (5pt) Now let’s analyze the CO2 emissions per capita (co2_PC). Make a similar plot of the same countries. What does this figure suggest?**
 
@@ -113,7 +126,10 @@ gap %>%
   summarise(co2_PC_total = sum(co2_PC)) %>% 
   filter(name == "China" | name == "United States of America" | name == "India" | name == "Israel" | name == "Morocco" | name == "Romania") %>% 
   ggplot(aes(name, co2_PC_total)) +
-  geom_col()
+  geom_col() +
+  labs(title = "Total CO2 Emissions per Capita",
+       x = "Country",
+       y = "Total CO2 Emissions per Capita")
 ```
 
 This figure shows how much of the total consumption from each individual in the country. While the U.S. remains the country with the highest CO2 consumption per capita, Israel is actually the country with the 2nd highest amount (maybe because it has a smaller population). India and China both have relatively lower consumption rates compared to the total emissions, but it could be due to their large population.
@@ -127,41 +143,127 @@ _Hint: Americas 2016 should be 4.80._
 gap %>%
   filter(time == 2016) %>% 
   group_by(region) %>% 
-  filter(!is.na(co2_PC)) %>% 
+  filter(!is.na(co2_PC), !is.na(region)) %>% 
   summarise(co2_PC_avg = mean(co2_PC))
 ```
 
-Just for clarification purposes, in the question it didn't specify which year to refer to, but the hint referenced the Americas in 2016 so I decided to find the average based on 2016 only. There is an extreme outlier _NA_ in this data set which has an extremely high average, I'm honestly not sure why. The rest of the data seems reasonable considering their regions. I'm not surprised that Africa is the lowest, solely by understanding how majority of the countries are still trying to establish themselves.
+Just for clarification purposes, in the question it didn't specify which year to refer to, but the hint referenced the Americas in 2016 so I decided to find the average based on 2016 only. The data seems reasonable considering their regions. I'm not surprised that Africa is the lowest, solely by understanding how majority of the countries are still trying to establish themselves.
 
 #### 5. (7pt) Make a barplot where you show the previous results–average CO2 emissions per capita across continents in 1960 and 2016.
 
+```{r warning=FALSE}
+gap %>%
+  filter(time %in% c(1960, 2016), !is.na(co2_PC), !is.na(region)) %>% 
+  group_by(region, time) %>% 
+  summarise(co2_PC_avg = mean(co2_PC)) %>% 
+ggplot(mapping = aes(x=region, y=co2_PC_avg, fill = factor(time))) +
+  geom_col(position = "dodge") +
+  labs(title = "Average CO2 Emissions per Capita across Continents in 1960 and 2016", x = "Continents", y = "Average CO2 Emissions per Capita")
+```
 
 #### 6. Which countries are the three largest, and three smallest CO2 emitters (in terms of CO2 per capita) in 2019 for each continent? (Assume region is continent).
 
+```{r warning=FALSE}
+gap %>% 
+  filter(time %in% 2016) %>%
+  filter(!is.na(co2_PC), !is.na(region)) %>% 
+  group_by(region, name) %>% 
+  summarize(co2_PC_avg = mean(co2_PC)) %>% 
+  arrange(desc(co2_PC_avg)) %>% 
+  filter(rank(co2_PC_avg) <= 3 | rank(desc(co2_PC_avg)) <= 3) %>% 
+  arrange(region) %>% 
+  group_split(region)
+```
+
+For this problem, I used the 2016 data, because all of the data for 2019 was _not available_. 
 
 ### 4: GDP per capita (50pt)
 Let’s look at GDP per capita (GDP_PC).
 
 **1. (8pt) Make a scatterplot of GDP per capita versus life expectancy by country, using data for 1960. Make the point size dependent on the country size, and color those according to the continent. Feel free to adjust the plot in other ways to make it better. Comment what do you see there.**
 
+```{r warning=FALSE}
+gap %>% 
+  filter(time %in% 1960) %>% 
+  filter(!is.na(GDP_PC) | !is.na(lifeExpectancy)) %>% 
+  ggplot(mapping = aes(GDP_PC, lifeExpectancy, col = region)) +
+  geom_point(aes(size = totalPopulation)) +
+    labs(title = "GDP per Capita versus Life Expectancy",
+       x = "GDP per Capita",
+       y = "Life Expectancy")
+```
+
+There seems to be a common trend that when a country has a higher GDP per capita that it is likely that the Life Expectancy is also higher as a result. It also seems that majority of the countries that have the higher life expectancy are from Europe with smaller population sizes.
 
 **2. (4pt) Make a similar plot, but this time use 2019 data only.**
 
+```{r warning=FALSE}
+gap %>% 
+  filter(time %in% 2019) %>% 
+  filter(!is.na(GDP_PC) | !is.na(lifeExpectancy)) %>% 
+  ggplot(mapping = aes(GDP_PC, lifeExpectancy, col = region)) +
+  geom_point(aes(size = totalPopulation)) +
+    labs(title = "GDP per Capita versus Life Expectancy",
+       x = "GDP per Capita",
+       y = "Life Expectancy")
+```
 
 **3. (6pt) Compare these two plots and comment what do you see. How has world developed through the last 60 years?**
 
+Both plots seem to follow the same trend, where countries with lower GDP per capita have lower life expectancy, and countries with higher GDP per capita have higher life expectancy. Each graph also shows similarities in terms of how each of the regions remain relatively in the same area among the graph. However, over the course of the last 60 years, it seems that (a) a lot more countries now have the data and have larger populations, (b) the quantity of GDP per capita is significantly larger, and (c) most of the world life expectancy has increased significantly.
 
 **4. (6pt) Compute the average life expectancy for each continent in 1960 and 2019. Do the results fit with what do you see on the figures?**
 
 _Note: here as average I mean just average over countries, ignore the fact that countries are of different size._
 
+```{r}
+gap %>% 
+  filter(!is.na(lifeExpectancy), !is.na(region)) %>% 
+  filter(time %in% c(1960)) %>% 
+  group_by(region) %>% 
+  summarise(avg_life_exp_1960 = mean(lifeExpectancy)) %>% 
+  arrange(desc(avg_life_exp_1960))
+gap %>% 
+  filter(!is.na(lifeExpectancy), !is.na(region)) %>% 
+  filter(time %in% c(2019)) %>% 
+  group_by(region) %>% 
+  summarise(avg_life_exp_2019 = mean(lifeExpectancy)) %>% 
+  arrange(desc(avg_life_exp_2019))
+```
+
+The results do fit and align with the findings from the graph. Over time, life expectancy increased globally, but still contains the trend that Europe and the Americas have the highest life expectancy and Africa has the lowest.
 
 **5. (8pt) Compute the average LE growth from 1960-2019 across the continents. Show the results in the order of growth. Explain what do you see.**
 
 _Hint: these data (data in long form) is not the simplest to compute growth. But you may want to check out the lag() function. And do not forget to group data by continent when using lag(), otherwise your results will be messed up!_ 
 
+```{r warning=FALSE}
+gap %>% 
+  filter(!is.na(lifeExpectancy), !is.na(region)) %>% 
+  filter(time == 1960 | time == 2019) %>% 
+  group_by(region, time) %>% 
+  mutate(le_avg = mean(lifeExpectancy)) %>% 
+  group_by(region) %>% 
+  mutate(le_prev = lag(le_avg, order_by = time)) %>% 
+  summarise(le_avg_growth = le_avg - le_prev) %>% 
+  filter(!le_avg_growth == 0) %>% 
+  arrange(desc(le_avg_growth))
+```
+
+Based on this new information, both Asia and Africa have had the most growth in their life expectancy, and these are both countries that had the lower life expectancy in 1960. Europe had the least growth in their average life expectancy, but was also considered the region with the highest life expectancy in 2019.
 
 **6. (6pt) Show the histogram of GDP per capita for years of 1960 and 2019. Try to put both histograms on the same graph, see how well you can do it!**
+
+```{r}
+gap %>% 
+  filter(time == 1960 | time == 2019) %>% 
+  filter(!is.na(GDP_PC)) %>% 
+  group_by(time) %>% 
+  ggplot(aes(GDP_PC, fill = factor(time))) +
+  geom_histogram(position = "dodge") +
+  labs(title = "GDP per Capita in 1960 versus 2019",
+       x = "GDP per Capita")
+```
 
 
 **7. (6pt) What was the ranking of US in terms of life expectancy in 1960 and in 2019? (When counting from top.)**
@@ -169,12 +271,50 @@ _Hint: these data (data in long form) is not the simplest to compute growth. But
 _Hint: check out the function rank()!_
 _Hint2: 17 for 1960._
 
+```{r}
+gap %>% 
+  filter(!is.na(lifeExpectancy), !is.na(name)) %>% 
+  filter(time == 1960) %>% 
+  mutate(rank = round(rank(-lifeExpectancy), 0)) %>% 
+  select(name, lifeExpectancy, rank) %>% 
+  arrange(rank) %>% 
+  filter(name == "United States of America")
+
+gap %>% 
+  filter(!is.na(lifeExpectancy), !is.na(name)) %>% 
+  filter(time == 2019) %>% 
+  mutate(rank = round(rank(-lifeExpectancy), 0)) %>% 
+  select(name, lifeExpectancy, rank) %>% 
+  arrange(rank) %>% 
+  filter(name == "United States of America")
+```
+
 
 **8. (6pt) If you did this correctly, then you noticed that US ranking has been falling quite a bit. But we also have more countries in 2019–what about the relative rank divided by the corresponding number of countries that have LE data in the corresponding year?**
 
 _Hint: 0.0904 for 1960._
 
+```{r}
+gap %>% 
+  filter(!is.na(lifeExpectancy), !is.na(name)) %>% 
+  filter(time == 1960) %>% 
+  mutate(rank = round(rank(-lifeExpectancy), 0)) %>% 
+  mutate(rank_relative = round((rank / n_distinct(name)), 4)) %>% 
+  select(name, lifeExpectancy, rank, rank_relative) %>% 
+  arrange(rank) %>% 
+  filter(name == "United States of America")
 
-Finally, tell us how many hours did you spend on this PS.
+gap %>% 
+  filter(!is.na(lifeExpectancy), !is.na(name)) %>% 
+  filter(time == 2019) %>% 
+  mutate(rank = round(rank(-lifeExpectancy), 0)) %>% 
+  mutate(rank_relative = round((rank / n_distinct(name)), 4)) %>% 
+  select(name, lifeExpectancy, rank, rank_relative) %>% 
+  arrange(rank) %>% 
+  filter(name == "United States of America")
+```
 
-I spent 3 hours on this PS.
+
+**Finally, tell us how many hours did you spend on this PS.**
+
+I spent, at least, 10 hours on this PS.
